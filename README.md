@@ -8,7 +8,7 @@ Automating a Discord user account goes against their TOS and can get the account
 
 The script reads `candidates.txt` (one username per line) and tries to rename the account to each of them, with a random delay between attempts. If it goes through, you get an [ntfy](https://ntfy.sh) notification and the username is removed from the list.
 
-If Discord asks for a captcha, the bot pauses (you have to restart it manually). Solving the captcha through the API would need a valid hCaptcha token, which I don't provide here.
+If Discord asks for a captcha, the bot pauses (you have to restart it manually). Solving the captcha through the API would need a valid hCaptcha token, which I don't provide here. If you need to get paste it, u would to look into a captcha resolver service.
 
 The dashboard runs on `http://localhost:8080` and reads the status files in `status/`.
 
