@@ -46,7 +46,7 @@ def notify(title: str, message: str, priority: str = "default"):
             timeout=10,
         )
     except requests.RequestException as e:
-        log.error(f"Echec envoi notif ntfy: {e}")
+        log.error(f"Failed to send ntfy notification: {e}")
 
 
 def write_status(**fields):
@@ -64,7 +64,7 @@ def write_status(**fields):
 def load_candidates() -> list[str]:
     path = Path(CANDIDATES_FILE)
     if not path.exists():
-        raise FileNotFoundError(f"{CANDIDATES_FILE} introuvable")
+        raise FileNotFoundError(f"{CANDIDATES_FILE} not found")
     names = [line.strip() for line in path.read_text().splitlines()]
     return [n for n in names if n and not n.startswith("#")]
 
@@ -74,7 +74,7 @@ def save_candidates(names: list[str]):
 
 
 def try_claim(username: str) -> str:
-    # renvoie success / taken / ratelimited / captcha / error
+    # returns success / taken / ratelimited / captcha / error
     resp = requests.patch(
         f"{API_BASE}/users/@me",
         headers={
@@ -95,8 +95,8 @@ def try_claim(username: str) -> str:
         return "ratelimited"
 
     if resp.status_code == 401:
-        log.error("Token invalide ou expire (401). Arret.")
-        notify("Sniper: token invalide", f"Le token du compte semble expire.", priority="high")
+        log.error("Invalid or expired token (401). Stopping.")
+        notify("Sniper: invalid token", "The account token seems to be expired.", priority="high")
         raise SystemExit(1)
 
     body = {}
@@ -106,10 +106,10 @@ def try_claim(username: str) -> str:
         pass
 
     if "captcha_key" in body or "captcha_sitekey" in body:
-        log.warning(f"Captcha requis pour '{username}'. Intervention manuelle necessaire.")
+        log.warning(f"Captcha required for '{username}'. Manual intervention needed.")
         notify(
-            "Sniper: captcha requis",
-            f"Discord demande un captcha pour tenter '{username}'. Impossible d'automatiser, connecte-toi manuellement si besoin.",
+            "Sniper: captcha required",
+            f"Discord is asking for a captcha to try '{username}'. Can't automate it, log in manually if needed.",
             priority="high",
         )
         return "captcha"
@@ -117,7 +117,7 @@ def try_claim(username: str) -> str:
     if resp.status_code == 400:
         return "taken"
 
-    log.error(f"Reponse inattendue ({resp.status_code}): {body}")
+    log.error(f"Unexpected response ({resp.status_code}): {body}")
     return "error"
 
 
@@ -125,11 +125,11 @@ def main():
     candidates = load_candidates()
     total = len(candidates)
     if not candidates:
-        log.error("Aucun pseudo candidat dans le fichier.")
+        log.error("No candidate usernames in the file.")
         return
 
-    log.info(f"Demarrage, {total} candidats.")
-    notify("Sniper demarre", f"Surveillance de {total} pseudo(s).")
+    log.info(f"Starting, {total} candidates.")
+    notify("Sniper started", f"Watching {total} username(s).")
 
     attempts = 0
     found = []
@@ -148,8 +148,8 @@ def main():
             attempts += 1
 
             if result == "success":
-                log.info(f"SUCCES: '{name}' recupere !")
-                notify("Pseudo recupere !", f"'{name}' est maintenant ton pseudo Discord.", priority="urgent")
+                log.info(f"SUCCESS: got '{name}'!")
+                notify("Username claimed!", f"'{name}' is now your Discord username.", priority="urgent")
                 candidates.remove(name)
                 save_candidates(candidates)
                 found.append(name)
@@ -157,7 +157,7 @@ def main():
                              attempts_total=attempts, remaining=len(candidates),
                              total_candidates=total, found=found)
                 if not CONTINUE_AFTER_SUCCESS:
-                    log.info("Arret (CONTINUE_AFTER_SUCCESS=false).")
+                    log.info("Stopping (CONTINUE_AFTER_SUCCESS=false).")
                     write_status(state="stopped_success", current=name, last_result=result,
                                  attempts_total=attempts, remaining=len(candidates),
                                  total_candidates=total, found=found)
@@ -171,7 +171,7 @@ def main():
                 break
 
             elif result == "taken":
-                log.info(f"'{name}' toujours pris.")
+                log.info(f"'{name}' still taken.")
                 write_status(state="running", current=name, last_result=result,
                              attempts_total=attempts, remaining=len(candidates),
                              total_candidates=total, found=found)
@@ -184,11 +184,11 @@ def main():
             time.sleep(random.uniform(POLL_INTERVAL_MIN, POLL_INTERVAL_MAX))
 
     if not candidates:
-        log.info("Liste epuisee, aucun candidat restant.")
+        log.info("List exhausted, no candidates left.")
         write_status(state="exhausted", current=None, last_result=None,
                      attempts_total=attempts, remaining=0, total_candidates=total, found=found)
     elif captcha_paused:
-        log.info("En pause suite a un captcha. Relance le conteneur apres verification manuelle.")
+        log.info("Paused after a captcha. Restart the container once resolved manually.")
 
 
 if __name__ == "__main__":

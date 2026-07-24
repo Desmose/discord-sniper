@@ -1,4 +1,4 @@
-# Un pseudo candidat par ligne, les lignes commencant par # sont ignorees
+# One candidate username per line, lines starting with # are ignored
 abbe
 acte
 agar

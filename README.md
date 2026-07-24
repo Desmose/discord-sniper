@@ -1,16 +1,16 @@
 # discord-sniper
 
-Petit bot qui surveille une liste de pseudos Discord et essaie de les prendre des qu'ils se liberent (via `PATCH /users/@me`). Avec un mini dashboard web pour voir ce qui se passe.
+Script that watches a list of Discord usernames and tries to grab them as soon as they free up (via `PATCH /users/@me`). Comes with a web dashboard to follow the progress.
 
-Automatiser un compte user Discord c'est contre leurs TOS et ca peut faire ban le compte. Fais-le sur un compte jetable, a tes risques.
+Automating a Discord user account goes against their TOS and can get the account banned. Do it on a throwaway account, at your own risk.
 
-## Comment ca marche
+## How it works
 
-Le script lit `candidates.txt` (un pseudo par ligne) et tente de renommer le compte vers chacun, avec un delai aleatoire entre les essais. Si ca passe, tu recois une notif [ntfy](https://ntfy.sh) et le pseudo est retire de la liste.
+The script reads `candidates.txt` (one username per line) and tries to rename the account to each of them, with a random delay between attempts. If it goes through, you get an [ntfy](https://ntfy.sh) notification and the username is removed from the list.
 
-Si Discord demande un captcha, le bot se met en pause (faut le relancer a la main). Resoudre le captcha via l'API demanderait un token hCaptcha valide, que je ne fournis pas ici.
+If Discord asks for a captcha, the bot pauses (you have to restart it manually). Solving the captcha through the API would need a valid hCaptcha token, which I don't provide here.
 
-Le dashboard tourne sur `http://localhost:8080` et lit les fichiers de statut dans `status/`.
+The dashboard runs on `http://localhost:8080` and reads the status files in `status/`.
 
 ## Setup
 
@@ -19,21 +19,21 @@ cp .env.example .env
 cp candidates.example.txt candidates.txt
 ```
 
-Puis remplis `.env` :
-- `DISCORD_TOKEN` : dans le navigateur, devtools -> onglet Reseau -> une requete vers `users/@me` -> copie le header `Authorization`
-- `DISCORD_PASSWORD` : le mot de passe du compte (Discord le demande pour valider le changement de pseudo)
-- `NTFY_TOPIC` : un nom de topic random sur ntfy.sh (attention, qui connait le topic peut lire tes notifs)
+Then fill in `.env`:
+- `DISCORD_TOKEN`: in the browser, devtools -> Network tab -> a request to `users/@me` -> copy the `Authorization` header
+- `DISCORD_PASSWORD`: the account password (Discord requires it to validate the username change)
+- `NTFY_TOPIC`: a random topic name on ntfy.sh (careful, anyone who knows the topic can read your notifications)
 
-Mets tes pseudos dans `candidates.txt`, un par ligne.
+Put your usernames in `candidates.txt`, one per line.
 
-## Lancer
+## Run
 
 ```bash
 docker compose up -d --build
 ```
 
-Le reste des reglages (intervalle entre essais, comportement apres un succes, etc.) est dans `.env.example`, c'est commente.
+The rest of the settings (delay between attempts, behavior after a success, etc.) are in `.env.example`, they're commented.
 
-## A savoir
+## Good to know
 
-Discord finit souvent par exiger un captcha si tu spam les tentatives depuis l'API. Garde un intervalle pas trop court (genre 60-90s) pour limiter ca, mais y'a pas de garantie.
+Discord often ends up requiring a captcha if you spam attempts through the API. Keep the delay not too short (like 60-90s) to limit that, but there's no guarantee.
