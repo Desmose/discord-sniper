@@ -74,7 +74,7 @@ def save_candidates(names: list[str]):
 
 
 def try_claim(username: str) -> str:
-    """Retourne 'success', 'taken', 'ratelimited', 'captcha', ou 'error'."""
+    # renvoie success / taken / ratelimited / captcha / error
     resp = requests.patch(
         f"{API_BASE}/users/@me",
         headers={
