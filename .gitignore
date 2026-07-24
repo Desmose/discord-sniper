@@ -1,0 +1,5 @@
+.env
+candidates.txt
+status/
+__pycache__/
+*.pyc

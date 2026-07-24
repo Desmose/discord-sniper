@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>discord-sniper // dashboard</title>
+<style>
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  @keyframes flicker {
+    0% { opacity: 0.97; } 5% { opacity: 1; } 10% { opacity: 0.95; }
+    15% { opacity: 1; } 100% { opacity: 1; }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #060a06;
+    color: #33ff66;
+    font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+    font-size: 15px;
+    overflow-x: auto;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.25) 3px, rgba(0,0,0,0) 4px
+    );
+    pointer-events: none;
+    z-index: 5;
+    animation: flicker 6s infinite;
+  }
+  .wrap { padding: 24px 28px 60px; max-width: 1100px; margin: 0 auto; }
+  .titlebar {
+    border: 1px solid #1f6b32;
+    background: linear-gradient(180deg, #0c150c, #070d07);
+    padding: 10px 16px;
+    display: flex; justify-content: space-between; align-items: baseline;
+    box-shadow: 0 0 18px rgba(51,255,102,0.08), inset 0 0 30px rgba(51,255,102,0.03);
+  }
+  .titlebar h1 {
+    font-size: 16px; margin: 0; letter-spacing: 2px; text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(51,255,102,0.6);
+  }
+  .titlebar .clock { color: #7fffa0; opacity: 0.8; }
+  .cursor { display: inline-block; width: 9px; background: #33ff66; margin-left: 4px; animation: blink 1s step-start infinite; }
+
+  .summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin: 18px 0 24px;
+  }
+  .card {
+    border: 1px solid #1f6b32; padding: 12px 14px;
+    background: rgba(51,255,102,0.03);
+  }
+  .card .label { font-size: 11px; opacity: 0.65; text-transform: uppercase; letter-spacing: 1px; }
+  .card .value { font-size: 22px; margin-top: 4px; text-shadow: 0 0 8px rgba(51,255,102,0.5); }
+  .card.found .value { color: #ffe066; text-shadow: 0 0 10px rgba(255,224,102,0.7); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: #7fffa0; opacity: 0.7; padding: 6px 10px; border-bottom: 1px solid #1f6b32;
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid rgba(31,107,50,0.4); vertical-align: middle; }
+  tr.state-running td.state { color: #33ff66; }
+  tr.state-captcha_paused { background: rgba(255,80,80,0.06); }
+  tr.state-captcha_paused td.state { color: #ff5050; text-shadow: 0 0 6px rgba(255,80,80,0.6); animation: blink 1s step-start infinite; }
+  tr.state-stopped_success td.state { color: #ffe066; text-shadow: 0 0 6px rgba(255,224,102,0.6); }
+  tr.state-exhausted td.state { color: #6b8f78; }
+  tr.state-error td.state, tr.state-stopped_error td.state { color: #ff5050; }
+  tr.state-starting td.state { color: #7fbfff; }
+  .stale { opacity: 0.35; }
+  .bar-bg { width: 90px; height: 6px; background: rgba(51,255,102,0.12); display: inline-block; vertical-align: middle; }
+  .bar-fill { height: 6px; background: #33ff66; box-shadow: 0 0 6px rgba(51,255,102,0.7); }
+  .found-tag {
+    display: inline-block; padding: 1px 6px; margin: 1px; border: 1px solid #ffe066; color: #ffe066;
+  }
+  .footer { margin-top: 26px; font-size: 11px; opacity: 0.4; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="titlebar">
+    <h1>discord-sniper // live dashboard<span class="cursor">&nbsp;</span></h1>
+    <span class="clock" id="clock">--:--:--</span>
+  </div>
+
+  <div class="summary">
+    <div class="card"><div class="label">Comptes actifs</div><div class="value" id="s-accounts">0</div></div>
+    <div class="card"><div class="label">Tentatives totales</div><div class="value" id="s-attempts">0</div></div>
+    <div class="card"><div class="label">Restants</div><div class="value" id="s-remaining">0</div></div>
+    <div class="card found"><div class="label">Pseudos trouves</div><div class="value" id="s-found">0</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Compte</th><th>Etat</th><th>Candidat en cours</th><th>Progression</th>
+        <th>Tentatives</th><th>Dernier resultat</th><th>Trouve(s)</th><th>MAJ</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <div class="footer">refresh auto 2s // discord-sniper</div>
+</div>
+
+<script>
+function fmtAge(s) {
+  if (s < 60) return Math.floor(s) + "s";
+  if (s < 3600) return Math.floor(s/60) + "m";
+  return Math.floor(s/3600) + "h";
+}
+
+async function tick() {
+  document.getElementById("clock").textContent = new Date().toLocaleTimeString("fr-FR");
+  try {
+    const res = await fetch("/api/status");
+    const data = await res.json();
+    const t = data.totals;
+    document.getElementById("s-accounts").textContent = t.accounts_online;
+    document.getElementById("s-attempts").textContent = t.attempts;
+    document.getElementById("s-remaining").textContent = t.remaining;
+    document.getElementById("s-found").textContent = t.found.length;
+
+    const rows = document.getElementById("rows");
+    rows.innerHTML = "";
+    for (const a of data.accounts) {
+      const pct = a.total_candidates ? Math.round(100 * (a.total_candidates - a.remaining) / a.total_candidates) : 0;
+      const stale = a.age_seconds > 180 ? "stale" : "";
+      const foundTags = (a.found || []).map(f => `<span class="found-tag">${f}</span>`).join(" ");
+      const tr = document.createElement("tr");
+      tr.className = `state-${a.state} ${stale}`;
+      tr.innerHTML = `
+        <td>${a.account}</td>
+        <td class="state">${a.state}</td>
+        <td>${a.current || "-"}</td>
+        <td><span class="bar-bg"><span class="bar-fill" style="width:${pct}%"></span></span> ${pct}%</td>
+        <td>${a.attempts_total}</td>
+        <td>${a.last_result || "-"}</td>
+        <td>${foundTags || "-"}</td>
+        <td>${fmtAge(a.age_seconds)}</td>
+      `;
+      rows.appendChild(tr);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+tick();
+setInterval(tick, 2000);
+</script>
+</body>
+</html>

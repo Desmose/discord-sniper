@@ -1,0 +1,4 @@
+# Un pseudo candidat par ligne, les lignes commencant par # sont ignorees
+abbe
+acte
+agar

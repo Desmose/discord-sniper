@@ -1,0 +1,18 @@
+services:
+  sniper:
+    build: .
+    container_name: discord-sniper
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./candidates.txt:/app/candidates.txt
+      - ./status:/app/status
+
+  dashboard:
+    build: ./dashboard
+    container_name: discord-sniper-dashboard
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./status:/app/status:ro
